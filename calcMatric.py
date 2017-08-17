@@ -16,12 +16,13 @@ classes = ["aeroplane","bicycle","bird","boat","bottle","bus","car" \
 IoUThreshold = 0.5
 
 def calculate_mAP():
+
     fileList = os.listdir(groundTruthFolder)
     truePositives = np.zeros(numOfClasses)
     falsePositives = np.zeros(numOfClasses)
     falseNegatives = np.zeros(numOfClasses)
     
-
+    iteration=0
     for file in fileList:
         
         predictedFilePath = predictedFolder+file
@@ -51,6 +52,11 @@ def calculate_mAP():
             ymax = int(item.find('bndbox').find('ymax').text)
             
             dictPredicted[categoryIndex].append([confidence,xmin,xmax,ymin,ymax])           
+        
+        # if no object is detected, count it as False Negative
+        #if not bool(dictPredicted):
+        #    falseNegatives+=1
+
         # sort each of the entries by decreasing order of confidence values
         for i in range(numOfClasses):
             dictPredicted[i]=sorted(dictPredicted[i],key=itemgetter(0),reverse=True)
@@ -69,9 +75,9 @@ def calculate_mAP():
 
             # 0/1 denotes weather the ground truth has been alloted to a prediction
             dictMask[categoryIndex].append(0)
-
+        
         # for a particular class, say chair
-        for i in range(numOfClasses):
+        for i in xrange(numOfClasses):
             # if atleast one of the box is predicted to be positive
             while dictPredicted[i]!=[]:
                 maxIoU=0
@@ -93,22 +99,38 @@ def calculate_mAP():
                 else:
                     falsePositives[i]+=1
                 dictPredicted[i].pop(0)
-           
+        
+        for i in xrange(numOfClasses):
+            falseNegatives[i]+=sum([1-j for j in dictMask[i]])
+        
+        #print 'fileName'+str(file)
+        #print 'truePositives'+str(truePositives)
+        #print 'falsePositives'+str(falsePositives)
+        #print 'falseNegatives'+str(falseNegatives)
+
     print truePositives
     print falsePositives
-    
-    print truePositives/(truePositives+falsePositives)
+    print falseNegatives 
 
+    #print truePositives/(truePositives+falsePositives)
+    #print truePositives/(truePositives+falseNegatives)
+    
+    
     fP = np.sum(falsePositives)
     tP = np.sum(truePositives)
     fN = np.sum(falseNegatives)
     precision = tP/(tP+fP)
-    #recall = tP/(tP+fN)
+    recall = tP/(tP+fN)
     print precision
+    print recall
 
+    '''
     avgPrecision =0
-    #for th in range(0.0,1.0,0.1):
-
+    for th in xrange(0.0,1.0,0.1):
+        p = np.maximum(precision(recall>=th))
+        avgPrecision+=(p/11)
+    print avgPrecision
+    '''
 
 def IoU(boxA,boxB):
 
