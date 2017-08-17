@@ -67,7 +67,7 @@ class Yolo:
         saveAnnotatedImage = True
         saveAnnotatedXML = False
         showImage = True
-        inputFile = 'test/person.jpg'
+        inputFile = 'test/006656.jpg'
         outputFile = 'test/output.jpg'
         textOutputFile = 'test/outputAnnotations.txt'
     else :
@@ -273,7 +273,7 @@ class Yolo:
         objectLoss = tf.square(predictedObjectConfidence - groundTruthGrid)
         objectLoss = tf.where(responsibleBox,objectLoss[:,:,:,0],objectLoss[:,:,:,1])
         tempObjectLoss = tf.reshape(objectLoss,[-1,7,7,1])
-        objectLoss = tf.multiply(groundTruthGird,tempObjectLoss)
+        objectLoss = tf.multiply(groundTruthGrid,tempObjectLoss)
         
         # class loss ( loss due to misjudgement in class of the object detected )
         classLoss = tf.square(predictedClasses - groundTruthClasses)
@@ -459,21 +459,42 @@ class Yolo:
             y = int(results[i][2])
             w = int(results[i][3])
             h = int(results[i][4])
+            
             #print x,y,w,h,results[i][0]
-            if self.displayConsole:
-                print 'Class :'+results[i][0]+',[x,y,w,h] ['+str(x)+','+str(y)+','+str(w)+','+str(h)+'] Confidence :'+str(results[i][5])
+            imageHeight,imageWidth,_ = image.shape
             
             w=w//2
             h=h//2 
+            
+            #change to truncate boxes which go outside the image
+            xmin,xmax,ymin,ymax=0,0,0,0
+            xmin=3 if not max(x-w,0) else (x-w)
+            xmax=imageWidth-3 if not min(x+w-imageWidth,0) else (x+w)
+            ymin=1 if not max(y-h,0) else (y-h)
+            ymax=imageHeight-3 if not min(y+h-imageHeight,0) else (y+h)
 
-            # each class must have a unique color
+                
+            if self.displayConsole:
+                print 'Class :'+results[i][0]+',[x,y,w,h] ['+str(x)+','+str(y)+','+str(w)+','+str(h)+'] Confidence :'+str(results[i][5])
+                       # each class must have a unique color
             color = tuple([(j*(1+self.classes.index(results[i][0]))%255) for j in self.seed])
 
-            cv2.rectangle(image,(x-w,y-h),(x+w,y+h),color,2)
+
+            cv2.rectangle(image,(xmin,ymin),(xmax,ymax),color,2)
+            if ymin<=20:
+                cv2.rectangle(image,(xmin,ymin),(xmax,ymin+20),color,-1)
+                cv2.putText(image,results[i][0]+': %.2f' % results[i][5],(xmin+5,ymin+15),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),2)
+            else :    
+                cv2.rectangle(image,(xmin,ymin),(xmax,ymin-20),color,-1)
+                cv2.putText(image,results[i][0]+': %.2f' % results[i][5],(xmin+5,ymin-8),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),2)
+            
+            ''' 
+            cv2.rectangle(image,(x-w,y-h),(x+w,y+h),color,3)
             cv2.rectangle(image,(x-w,y-h-20),(x+w,y-h),(125,125,125),-1)
             cv2.putText(image,results[i][0]+': %.2f' % results[i][5],(x-w+5,y-h-7),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
-            
-            objectParameters = [results[i][0],x-w,y-w,x+h,y+h,results[i][5]]
+            '''         
+
+            objectParameters = [results[i][0],xmin,ymin,xmax,ymax,results[i][5]]
             predictedObjects.append(objectParameters)
         return image,predictedObjects
         
