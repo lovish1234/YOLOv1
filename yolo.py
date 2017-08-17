@@ -390,7 +390,7 @@ class Yolo:
         #print netOutput[0:980].shape
         
         # this should be called objectProbability
-        objectProbability = np.reshape(netOutput[:,0:980],[self.numOfGrids,self.numOfGrids,self.numOfClasses])
+        classConditionalProbability = np.reshape(netOutput[:,0:980],[self.numOfGrids,self.numOfGrids,self.numOfClasses])
         classConfidence = np.reshape(netOutput[:,980:1078],[self.numOfGrids,self.numOfGrids,self.numOfBoxes])
 
         #(x,y,w,h) of the two bounding boxes predicted by the network
@@ -398,7 +398,7 @@ class Yolo:
 
         for i in range(self.numOfBoxes):
             for j in range(self.numOfClasses):
-                classProbability[:,:,i,j]= np.multiply(objectProbability[:,:,j],classConfidence[:,:,i])
+                classProbability[:,:,i,j]= np.multiply(classConditionalProbability[:,:,j],classConfidence[:,:,i])
         
         offset = np.transpose(np.reshape([np.arange(7)]*14,(self.numOfBoxes,self.numOfGrids,self.numOfGrids)),(1,2,0))
 
