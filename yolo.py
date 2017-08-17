@@ -413,7 +413,7 @@ class Yolo:
         boxData[:,:,:,2] = np.multiply(boxData[:,:,:,2],boxData[:,:,:,2])*self.imageWidth
         boxData[:,:,:,3] = np.multiply(boxData[:,:,:,3],boxData[:,:,:,3])*self.imageHeight
 
-        #threhold the values, do not understand this part
+        #threhold the values
         filterClassProbability = np.array(classProbability>=self.scoreThreshold,dtype='bool')
         filteredProbability = classProbability[filterClassProbability]
 
