@@ -1,10 +1,10 @@
-import xml.etree.ElementTree as ET
-import os
-import numpy as np
+import cPickle
 import cv2
 import math
-import cPickle
+import numpy as np
+import os
 import sys
+import xml.etree.ElementTree as ET
 
 indexFile = '../VOC2007/train/ImageSets/Main/train.txt'
 
@@ -55,6 +55,7 @@ def preprocess_dataset():
         # find the annotations of objects in the list
         xmlObject = xmlParse.findall('object')
         for item in xmlObject:
+
             # per object per image
             totalObjects += 1
             category = item.find('name').text
@@ -63,8 +64,7 @@ def preprocess_dataset():
             xmax = int(item.find('bndbox').find('xmax').text)
             ymin = int(item.find('bndbox').find('ymin').text)
             ymax = int(item.find('bndbox').find('ymax').text)
-
-            # print xmin,xmax,ymin,ymax
+            # print(xmin, xmax, ymin, ymax)
 
             # take the midpoint and scale according to new size
             xC = ((xmin + xmax) * 1.0 / 2.0) * \
@@ -73,8 +73,8 @@ def preprocess_dataset():
                 (imageHeight * 1.0 / originalImageHeight)
             w = (xmax - xmin) * 1.0
             h = (ymax - ymin) * 1.0
+            # print((ymin + ymax) / 2.0, (imageHeight * 1.0 / originalImageHeight))
 
-            # print (ymin+ymax)/2.0, (imageHeight*1.0/originalImageHeight)
             # take xC and yC as offsets to the original image
             xOffset = ((xC % widthOfGrid) * 1.0) / widthOfGrid
             yOffset = ((yC % heightOfGrid) * 1.0) / heightOfGrid
@@ -83,8 +83,8 @@ def preprocess_dataset():
             # i think it should bot be in preprocessing
             wSqrt = math.sqrt(w * 1.0) / originalImageWidth
             hSqrt = math.sqrt(h * 1.0) / originalImageHeight
-            #w = (w*1.0)/originalImageWidth
-            #h = (h*1.0)/originalImageHeight
+            # w = (w * 1.0) / originalImageWidth
+            # h = (h * 1.0) / originalImageHeight
 
             boxData = [xOffset, yOffset, wSqrt, hSqrt]
 
@@ -97,9 +97,7 @@ def preprocess_dataset():
             responsibleGridY = int(yC / heightOfGrid)
             responsibleGrid = np.zeros([7, 7])
 
-            # print
-            # xmin,xmax,ymin,ymax,originalImageWidth,originalImageHeight,xC,yC,w,h,responsibleGridX,
-            # responsibleGridY
+            # print(xmin, xmax, ymin, ymax, originalImageWidth, originalImageHeight, xC, yC, w, h, responsibleGridX, responsibleGridY)
 
             responsibleGrid[responsibleGridX][responsibleGridY] = 1
             responsibleGrid = np.reshape(responsibleGrid, [49])
@@ -112,17 +110,18 @@ def preprocess_dataset():
         # Print something after processing 5 percent of files
         linesProcessed = linesProcessed + 1
         if linesProcessed % 100 == 0:
-            print 'Processed ' + str(linesProcessed) + ' images out of ' + str(numLines)
+            print('Processed ' + str(linesProcessed) + ' images out of ' + str(numLines))
             fileName = 'data/data-' + str(linesProcessed / 100) + '.pkl'
 
             with open(fileName, 'w') as f:
                 cPickle.dump(data, f)
-            print 'Saved ' + fileName
+            
+            print('Saved ' + fileName)
             del data[:]
 
     fileHandle.close()
-    print totalObjects
-    print totalImages
+    print('totalObjects = ' + totalObjects)
+    print('totalImages = ' + totalImages)
 
 if __name__ == "__main__":
     preprocess_dataset()

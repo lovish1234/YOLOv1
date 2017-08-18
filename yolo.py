@@ -1,16 +1,15 @@
-import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
-from six.moves import cPickle as pickle
-import xml.etree.cElementTree as ET
-from xml.dom import minidom
-
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 import random
 import os
 import sys
+import tensorflow as tf
 import time
+import xml.etree.cElementTree as ET
 
+from six.moves import cPickle as pickle
+from xml.dom import minidom
 
 # build a grpah for YOLO tiny architecture
 # define a general conv layer, pooling layer and fc layer
@@ -47,7 +46,7 @@ class Yolo:
     mode = 'testLive'
 
     # bounding box seeds
-    seed = [random.randint(1, 1000) for i in xrange(3)]
+    seed = [random.randint(1, 1000) for i in range(3)]
     # test on a database
     if mode == 'testDB':
         saveAnnotatedImage = True
@@ -152,7 +151,7 @@ class Yolo:
     # Builds the computational graph for the network
     def build_graph(self):
         if self.displayConsole:
-            print "Building Yolo Graph...."
+            print('Building Yolo Graph....')
         self.x = tf.placeholder('float32', [None, 448, 448, 3])
 
         self.conv1 = self.conv_layer(1, self.x, 64, 7, 2)
@@ -196,7 +195,7 @@ class Yolo:
         self.conv23 = self.conv_layer(27, self.conv22, 1024, 3, 1)
         self.conv24 = self.conv_layer(28, self.conv23, 1024, 3, 1)
 
-        # print self.conv24.get_shape()
+        # print(self.conv24.get_shape())
         # size reduced to 1024x7x7
         self.fc1 = self.fc_layer(29, self.conv24, 512,
                                  flatten=True, linear=False)
@@ -212,7 +211,7 @@ class Yolo:
         self.saver.restore(self.sess, self.weightFile)
 
         if self.displayConsole:
-            print 'Loading Complete \n'
+            print('Loading Complete \n')
 
     # complete the training function
     def train_network(self):
@@ -220,14 +219,14 @@ class Yolo:
         # save the weights after each epoch
         if self.trainData:
             if self.displayConsole:
-                print 'Started training...'
+                print('Started training...')
 
             for epoch in range(135):
                 pass
                 # save the model
         else:
             if self.displayConsole:
-                print 'No train data available'
+                print('No train data available')
 
     def calculate_loss_function(self, predicted, groundTruth):
         '''
@@ -332,7 +331,7 @@ class Yolo:
         bias = tf.Variable(tf.constant(0.1, shape=[numberOfFilters]))
 
         padSize = sizeOfFilter // 2
-        # print inputMatrix.get_shape()
+        # print(inputMatrix.get_shape())
         #paddedInput = np.lib.pad(inputMatrix,((0,0),(padSize,padSize),(padSize,padSize),(0,0)),'constant', constant_values = (0,0))
         paddedInput = tf.pad(
             inputMatrix, ([[0, 0], [padSize, padSize], [padSize, padSize], [0, 0]]))
@@ -342,14 +341,14 @@ class Yolo:
         conv_bias = tf.add(conv, bias, name=str(index) + '_conv')
 
         if self.displayConsole:
-            print ' Layer %d Type: Conv Size: %dx%d Stride: %d No.Filters: %d Input Channels : %d' % (index, sizeOfFilter, sizeOfFilter, stride, numberOfFilters, numberOfChannels)
+            print(' Layer %d Type: Conv Size: %dx%d Stride: %d No.Filters: %d Input Channels : %d' % (index, sizeOfFilter, sizeOfFilter, stride, numberOfFilters, numberOfChannels))
         # leaky relu as mentioned in YOLO paper
         return tf.maximum(self.alpha * conv_bias, conv_bias, name=str(index) + '_leaky_relu')
 
     def maxpool_layer(self, index, inputMatrix, sizeOfFilter, stride):
 
         if self.displayConsole:
-            print ' Layer %d Type: Maxpool Size: %dx%d Stride: %d' % (index, sizeOfFilter, sizeOfFilter, stride)
+            print(' Layer %d Type: Maxpool Size: %dx%d Stride: %d' % (index, sizeOfFilter, sizeOfFilter, stride))
         maxpool = tf.nn.max_pool(inputMatrix, ksize=[1, sizeOfFilter, sizeOfFilter, 1], strides=[
                                  1, sizeOfFilter, sizeOfFilter, 1], padding='SAME', name=str(index) + '_maxpool')
         return maxpool
@@ -373,7 +372,7 @@ class Yolo:
         bias = tf.Variable(tf.constant(0.1, shape=[outputNeurons]))
 
         if self.displayConsole:
-            print ' Layer %d Type: FullyConnected InSize: %d OutSize %d Linear: %d' % (index, inputDimension, outputNeurons, int(linear))
+            print(' Layer %d Type: FullyConnected InSize: %d OutSize %d Linear: %d' % (index, inputDimension, outputNeurons, int(linear)))
 
         # linear or leaky relu activation
         if linear:
@@ -386,7 +385,7 @@ class Yolo:
     def detect_from_file(self, fileName):
 
         if self.displayConsole:
-            print 'Detecting object from :' + fileName
+            print('Detecting object from :' + fileName)
         imageMatrix = cv2.imread(fileName)
         return self.detect_from_matrix(imageMatrix)
 
@@ -413,11 +412,11 @@ class Yolo:
         '''
         Threshold the confidence for all classes and apply Non-Maximum supression
         '''
-        # print sum(sum(netOutput))
+        # print(sum(sum(netOutput)))
         # to fill in the probability of every class
         classProbability = np.zeros(
             [self.numOfGrids, self.numOfGrids, self.numOfBoxes, self.numOfClasses])
-        # print netOutput[0:980].shape
+        # print(netOutput[0:980].shape)
 
         # this should be called objectProbability
         classConditionalProbability = np.reshape(
@@ -471,14 +470,14 @@ class Yolo:
         filteredBoxes = filteredBoxes[sort]
         filteredClasses = filteredClasses[sort]
 
-        # print sum(filteredProbability)
+        # print(sum(filteredProbability))
         # non-maximum supression
         for i in range(len(filteredBoxes)):
             if filteredProbability[i] == 0:
                 continue
             for j in range(i + 1, len(filteredBoxes)):
                 if self.iou(filteredBoxes[i], filteredBoxes[j]) > self.IoUThreshold:
-                    # print 'Rejecting Box'+str(j)
+                    # print('Rejecting Box' + str(j))
                     filteredProbability[j] = 0.0
 
         filterIoU = np.array(filteredProbability > 0.0, dtype='bool')
@@ -504,7 +503,7 @@ class Yolo:
             w = int(results[i][3])
             h = int(results[i][4])
 
-            # print x,y,w,h,results[i][0]
+            # print(x, y, w, h, results[i][0])
             imageHeight, imageWidth, _ = image.shape
 
             w = w // 2
@@ -520,7 +519,7 @@ class Yolo:
                 3 if not min(y + h - imageHeight, 0) else (y + h)
 
             if self.displayConsole:
-                print 'Class :' + results[i][0] + ',[x,y,w,h] [' + str(x) + ',' + str(y) + ',' + str(w) + ',' + str(h) + '] Confidence :' + str(results[i][5])
+                print('Class : ' + results[i][0] + ', [x, y, w, h] [' + str(x) + ', ' + str(y) + ', ' + str(w) + ', ' + str(h) + '] Confidence : ' + str(results[i][5]))
                 # each class must have a unique color
             color = tuple(
                 [(j * (1 + self.classes.index(results[i][0])) % 255) for j in self.seed])
@@ -538,9 +537,9 @@ class Yolo:
                             5], (xmin + 5, ymin - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
             ''' 
-            cv2.rectangle(image,(x-w,y-h),(x+w,y+h),color,3)
-            cv2.rectangle(image,(x-w,y-h-20),(x+w,y-h),(125,125,125),-1)
-            cv2.putText(image,results[i][0]+': %.2f' % results[i][5],(x-w+5,y-h-7),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
+            cv2.rectangle(image, (x - w, y - h), (x + w, y + h), color, 3)
+            cv2.rectangle(image, (x - w, y - h - 20), (x + w, y - h), (125, 125, 125), -1)
+            cv2.putText(image, results[i][0] + ': %.2f' % results[i][5], (x - w + 5, y - h - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
             '''
 
             objectParameters = [results[i][0], xmin,
@@ -559,7 +558,7 @@ class Yolo:
                             3] * 0.5) - max(boxA[1] - boxA[3] * 0.5, boxB[1] - boxB[3] * 0.5))
         intersection = intersectionX * intersectionY
         union = boxA[2] * boxA[3] + boxB[2] * boxB[3] - intersection
-        # print intersection,union,intersection/union
+        # print(intersection, union, intersection / union)
         return intersection / union
 
     def iouTrain(self, boxA, boxB, realBox):
