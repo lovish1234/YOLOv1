@@ -321,7 +321,7 @@ class Yolo:
                 self.save_xml(xmlFileName, predictedObjects)
 
     def save_xml(outputTextFileName, predictedObjects):
-    """To save XML file with details of predicted object"""
+        """To save XML file with details of predicted object"""
         if self.verbose:
             print('Saving xml file', outputTextFileName)
         # root element
