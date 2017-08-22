@@ -58,8 +58,8 @@ class Yolo:
                  lambdaCoordinate=5.0,
                  lambdaNoObject=0.5,
                  leakyReLUAlpha=0.1,
-                 inputFile=None,
-                 outputFile=None,
+                 inputFile='test/input.jpg',
+                 outputFile='test/output.jpg',
                  textOutputFile=None,
                  inputFolder=None,
                  outputFolder=None,
@@ -174,6 +174,10 @@ class Yolo:
                 self.saveAnnotatedXML = True
             # Test YOLO on all files in self.inputFolder
             self.yolo_test_db()
+        # Else, if YOLO is to be tested on a video
+        elif self.mode =='testVideo':
+            self.yolo_test_video()
+
         else:
             # TODO: train mode
             pass
@@ -319,6 +323,46 @@ class Yolo:
                 xmlFileName = os.path.join(
                     self.textOutputFolder, fileName.split('.')[0] + '.xml')
                 self.save_xml(xmlFileName, predictedObjects)
+    
+    def yolo_test_video(self):
+        """Test YOLO on a video"""
+        # open the input video, blocking call
+        inputVideo = cv2.VideoCapture(self.inputFile)
+
+        # get infomration about the input video
+        codec = int(inputVideo.get(cv2.CAP_PROP_FOURCC))
+        fps = int(inputVideo.get(cv2.CAP_PROP_FPS))
+        frameWidth = int(inputVideo.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frameHeight = int(inputVideo.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # open the output stream
+        outputVideo = cv2.VideoWriter(self.outputFile,
+                                      codec,
+                                      fps,
+                                      (frameWidth,frameHeight))
+        frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
+        totalFrames = inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)
+
+        start = time.time()
+        while True:
+            grabbed, frame = inputVideo.read()
+            if grabbed:
+                annotatedFrame, predictedObjects = self.detect_from_matrix(frame)
+                outputVideo.write(annotatedFrame)
+                frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
+            else:
+                inputVideo.set(cv2.CAP_PROP_POS_FRAMES, frameIndex-1)
+                cv2.waitKey(100)
+            if frameIndex==totalFrames:
+                break
+
+        end = time.time()
+        fps = totalFrames/(end-start)
+        print (fps)
+
+        inputVideo.release()
+        outputVideo.release()
+        cv2.destroyAllWindows()
 
     def save_xml(outputTextFileName, predictedObjects):
         """To save XML file with details of predicted object"""
