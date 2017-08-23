@@ -197,13 +197,21 @@ def calculate_mAP():
             averagePrecision[classId]+=(p/11)
 
     meanAveragePrecision = np.mean(averagePrecision)
-    print (meanAveragePrecision)
-    
+    print ("Mean Average Precision : %.3f" % meanAveragePrecision)
+    print ( "Class-Name",  
+            "Total Ground Truth", 
+            "Total Predicted", 
+            "True Positives", 
+            "False Positives", 
+            "Average Precision") 
  
     for classId in range(numOfClasses):
-        print (classes[classId], averagePrecision[classId])
-        print (len(dictPredicted[classId]), tP[classId,3999],fP[classId,3999])
-        print (totalGT[classId]) 
+        print ( classes[classId],
+                totalGT[classId],
+                len(dictPredicted[classId]),
+                tP[classId,3999],
+                fP[classId,3999],
+                averagePrecision[classId])
 
 # A function to calculate Intersection over Union (IoU)
 # i.e. fraction of common area between two boxes
