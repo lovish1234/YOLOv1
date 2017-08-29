@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import xml.etree.cElementTree as ET
@@ -159,7 +160,10 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
         # plt.plot(cumulativeRecall, cumulativePrecision); plt.xlabel("Recall"); plt.ylabel("Precision"); plt.show()
         # Recall values
         recallValues = np.unique(cumulativeRecall[-1])
-        recallStep = recallValues[0]
+        if len(recallValues) > 1:
+            recallStep = recallValues[1] - recallValues[0]
+        else:
+            recallStep = recallValues[0]
         # For each recall value
         for recallThreshold in recallValues:
             # Interpolated area under curve for recall value
@@ -169,6 +173,7 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
     # Mean Average Precision across classes
     meanAveragePrecision = np.mean(averagePrecision)
     
+    # Print results
     print("\nMean Average Precision : %0.4f\n" % meanAveragePrecision)
     print("{0:>12}".format("Class-Name"),
           "{0:7}".format("TotalGT"),
@@ -184,13 +189,15 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
               "{0:>14}".format(np.sum(falsePositives[classId])),
               "{0:8.4f}".format(averagePrecision[classId]))
 
-    # # Plot PC curve
-    # for cl, classId in enumerate(classes):
-    #     plt.plot(cumulativeRecall[cl], cumulativePrecision[cl], label=classId, c=np.random.rand(3, 1))
-    # plt.xlim([0, 1])
-    # plt.ylim([0.5, 1])
-    # leg = plt.legend(loc='right', fontsize=11)
-    # plt.show()
+    # Plot PC curve
+    for cl, classId in enumerate(classes):
+        plt.plot(cumulativeRecall[cl], cumulativePrecision[cl], label=classId, c=np.random.rand(3, 1))
+    plt.xlim([0, 1])
+    plt.ylim([0.5, 1])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    leg = plt.legend(loc='right', fontsize=11)
+    plt.show()
 
 
 # A function to calculate Intersection over Union (IoU)
