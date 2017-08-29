@@ -143,26 +143,28 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
                 falsePositives[classId][predictedObjectIndex] = 1
     
     # Average precision per class
+    cumulativePrecision = []
+    cumulativeRecall = []
     averagePrecision = np.zeros(numOfClasses)
     
     # For each class, calculate Interpolated Average Precision
     # as given in PASCAL VOC handbook
     for classId in range(numOfClasses):
         # Cumulative precision : precision with increasing number of detections considered
-        cumulativePrecision = np.divide(np.cumsum(truePositives[classId]),
-            1 + np.arange(totalPredicted[classId]))
+        cumulativePrecision.append(np.divide(np.cumsum(truePositives[classId]),
+            1 + np.arange(totalPredicted[classId])))
         # Cumulative Recall : recall with increasing number of detections considered
-        cumulativeRecall = np.cumsum(truePositives[classId]) / totalGT[classId]
+        cumulativeRecall.append(np.cumsum(truePositives[classId]) / totalGT[classId])
         # # Draw PC Curve
         # plt.plot(cumulativeRecall, cumulativePrecision); plt.xlabel("Recall"); plt.ylabel("Precision"); plt.show()
         # Recall values
-        recallValues = np.unique(cumulativeRecall)
+        recallValues = np.unique(cumulativeRecall[-1])
         recallStep = recallValues[0]
         # For each recall value
         for recallThreshold in recallValues:
             # Interpolated area under curve for recall value
             averagePrecision[classId] \
-                += np.max(cumulativePrecision[cumulativeRecall >= recallThreshold]) * recallStep
+                += np.max(cumulativePrecision[-1][cumulativeRecall[-1] >= recallThreshold]) * recallStep
     
     # Mean Average Precision across classes
     meanAveragePrecision = np.mean(averagePrecision)
@@ -181,6 +183,14 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
               "{0:>13}".format(np.sum(truePositives[classId])),
               "{0:>14}".format(np.sum(falsePositives[classId])),
               "{0:8.4f}".format(averagePrecision[classId]))
+
+    # # Plot PC curve
+    # for cl, classId in enumerate(classes):
+    #     plt.plot(cumulativeRecall[cl], cumulativePrecision[cl], label=classId, c=np.random.rand(3, 1))
+    # plt.xlim([0, 1])
+    # plt.ylim([0.5, 1])
+    # leg = plt.legend(loc='right', fontsize=11)
+    # plt.show()
 
 
 # A function to calculate Intersection over Union (IoU)
