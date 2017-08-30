@@ -17,23 +17,22 @@ numOfClasses = 20
 IoUThreshold = 0.5
 
 
-def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruthFolder, IoUThreshold=IoUThreshold):
-    
+def calculate_mAP(predictedFolder=predictedFolder,
+                    groundTruthFolder=groundTruthFolder,
+                    IoUThreshold=IoUThreshold,
+                    plotPCCurve=False):
     # Init
     fileListPredicted = os.listdir(predictedFolder)
     fileListGT = os.listdir(groundTruthFolder)
-    
     # Each index of values in key:value pair would consist
     # of [confidence, image_name, [x,y,w,h]],key:class
     dictPredicted = {}
     for classId in range(numOfClasses):
         dictPredicted[classId] = []
-    
     # Total numbers of objects predicted can help in
     # calculating recall as it equals TP + FN
     totalPredicted = np.zeros(numOfClasses, dtype=int)
     totalGT = np.zeros(numOfClasses, dtype=int)
-    
     # For all predicted notations
     for file in fileListPredicted:
         # Read the file
@@ -51,11 +50,9 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
                                            file,
                                            [xmin, xmax, ymin, ymax]])
             totalPredicted[classId] += 1
-    
     # For each predicted box, sort according to confidence
     for classId in range(numOfClasses):
         dictPredicted[classId].sort(key=lambda x: x[0], reverse=True)
-    
     # Dictionary of dictionary, key: class, nested key : file
     # eg. { 'car' : {000001.xml: [[x,y,w,h],[a,b,c,d]], '0000002.xml': [] } }
     dictGT = {}
@@ -66,7 +63,6 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
         for file in fileListGT:
             dictGT[classId][file] = []
             dictMask[classId][file] = []
-    
     # For all ground truth notations
     for file in fileListGT:
         # Read the file
@@ -87,11 +83,9 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
             # and modify it to 1 when a prediction corresponds with it
             dictMask[classId][file].append(0)
             totalGT[classId] += 1
-    
     # To record true positives and false positives
     truePositives = []
     falsePositives = []
-    
     # FIND TRUE POSITIVES
     # For each class
     for classId in range(numOfClasses):
@@ -142,12 +136,10 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
                 # For those classes with GT available but no prediction made,
                 # we will consider this a false positive
                 falsePositives[classId][predictedObjectIndex] = 1
-    
     # Average precision per class
     cumulativePrecision = []
     cumulativeRecall = []
     averagePrecision = np.zeros(numOfClasses)
-    
     # For each class, calculate Interpolated Average Precision
     # as given in PASCAL VOC handbook
     for classId in range(numOfClasses):
@@ -169,10 +161,8 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
             # Interpolated area under curve for recall value
             averagePrecision[classId] \
                 += np.max(cumulativePrecision[-1][cumulativeRecall[-1] >= recallThreshold]) * recallStep
-    
     # Mean Average Precision across classes
     meanAveragePrecision = np.mean(averagePrecision)
-    
     # Print results
     print("\nMean Average Precision : %0.4f\n" % meanAveragePrecision)
     print("{0:>12}".format("Class-Name"),
@@ -188,16 +178,18 @@ def calculate_mAP(predictedFolder=predictedFolder, groundTruthFolder=groundTruth
               "{0:>13}".format(np.sum(truePositives[classId])),
               "{0:>14}".format(np.sum(falsePositives[classId])),
               "{0:8.4f}".format(averagePrecision[classId]))
-
     # Plot PC curve
-    for cl, classId in enumerate(classes):
-        plt.plot(cumulativeRecall[cl], cumulativePrecision[cl], label=classId, c=np.random.rand(3, 1))
-    plt.xlim([0, 1])
-    plt.ylim([0.5, 1])
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    leg = plt.legend(loc='right', fontsize=11)
-    plt.show()
+    if plotPCCurve:
+        for cl, classId in enumerate(classes):
+            plt.plot(cumulativeRecall[cl], cumulativePrecision[cl], label=classId, c=np.random.rand(3, 1))
+        plt.xlim([0, 1])
+        plt.ylim([0.5, 1])
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        leg = plt.legend(loc='right', fontsize=11)
+        plt.show()
+    # Return
+    return meanAveragePrecision, averagePrecision
 
 
 # A function to calculate Intersection over Union (IoU)
