@@ -94,7 +94,8 @@ def calculate_mAP():
  
     truePositives = np.zeros((numOfClasses, 4000))
     falsePositives = np.zeros((numOfClasses, 4000))
-      
+    falseNegatives = np.zeros((numOfClasses, 4000))
+
    
     for classId in range(numOfClasses):
         for predictedObjectIndex in range(len(dictPredicted[classId])):
@@ -108,13 +109,12 @@ def calculate_mAP():
             if len(dictGT[classId][predictedItem[1]])==0:
                 falsePositives[classId,predictedObjectIndex]=1
                 continue
+                 
+            maxIoU = 0.0
+            maxIndex = -1
 
             # For each ground truth box            
             for GTObjectIndex in  range(len(dictGT[classId][predictedItem[1]])):
-                 
-                maxIoU = 0.0
-                maxIndex = -1
-
                 # If particular GTbox has already been alloted to predicted box
                 # move to the next box without considering it
                 if dictMask[classId][predictedItem[1]][GTObjectIndex]==1:
@@ -133,7 +133,6 @@ def calculate_mAP():
             # If all the GT box in a particular image are already alloted
             # to predictedBox, add the new predictedBox to fP
             if maxIndex==-1:
-                
                 falsePositives[classId,predictedObjectIndex]=1
                 continue
 
@@ -160,7 +159,7 @@ def calculate_mAP():
                 # FALSE NEGATIVES
                 # For those classes with GT available but no prediction made,
                 # we will consider this a false negative
-                    falsePositives[classId,predictedObjectIndex]=1
+                    falseNegatives[classId,predictedObjectIndex]=1
 
     tP = np.cumsum(truePositives, dtype=float, axis=1)
     fP = np.cumsum(falsePositives, dtype=float, axis=1)
@@ -195,6 +194,11 @@ def calculate_mAP():
             # Average precision would be mean of the precision values 
             # taken at these 11 points ( according to VOC handbook)
             averagePrecision[classId]+=(p/11)
+        '''
+        print (classes[classId])
+        print (averagePrecision[classId])
+        '''
+
 
     meanAveragePrecision = np.mean(averagePrecision)
     print ("Mean Average Precision : %.3f" % meanAveragePrecision)
@@ -209,8 +213,8 @@ def calculate_mAP():
         print ( classes[classId],
                 totalGT[classId],
                 len(dictPredicted[classId]),
-                tP[classId,3999],
-                fP[classId,3999],
+                np.sum(truePositives[classId]),
+                np.sum(falsePositives[classId]),
                 averagePrecision[classId])
 
 # A function to calculate Intersection over Union (IoU)
@@ -230,4 +234,3 @@ def IoU(boxA, boxB):
 
 if __name__=='__main__':
     calculate_mAP()
-
