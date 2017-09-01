@@ -45,7 +45,7 @@ class Yolo:
     seed = [random.randint(1, 1000) for i in range(3)]
 
     def __init__(self,
-                 mode='testLive',
+                 mode='testVideo',
                  weightFile='weights/yolo_small.ckpt',
                  showImage=None,
                  saveAnnotatedImage=None,
@@ -53,22 +53,22 @@ class Yolo:
                  numOfGridsIn1D=7,
                  numOfBoxesPerGrid=2,
                  batchSize=64,
-                 verbose=True,
+                 verbose=False,
                  debug=False,
                  minClassProbability=0.2,
                  iouThreshold=0.5,
                  lambdaCoordinate=5.0,
                  lambdaNoObject=0.5,
                  leakyReLUAlpha=0.1,
-                 inputFile=None,
-                 outputFile=None,
+                 inputFile='test/person.jpg',
+                 outputFile='test/output.jpg',
                  textOutputFile=None,
                  inputFolder=None,
                  outputFolder=None,
                  textOutputFolder=None):
         """Init function"""
         # Mode to run the Yolo code in
-        # {testLive, testFile, testDB, train}
+        # {testLive, testFile, testDB, testVideo, train}
         self.mode = mode
         # Weights file
         self.weightFile = weightFile
@@ -214,6 +214,11 @@ class Yolo:
             # Test YOLO on all files in self.inputFolder
             self.yolo_test_db()
 
+        # Else, if YOLO is to be tested on a video
+        elif self.mode =='testVideo':
+            self.yolo_test_video()
+
+
         else:
             # TODO: train mode
             pass
@@ -306,7 +311,7 @@ class Yolo:
                 # Save the parameters of detected objects in xml format
                 if self.saveAnnotatedXML:
                     xmlFileName = 'liveImagePredictions.xml'
-                    self.save_xml(xmlFileName, predictedObjects)
+                    self.save_xml(fileName, xmlFileName, predictedObjects)
         # Press Ctrl+C to quit
         except KeyboardInterrupt:
             print("YOLO stopped via keyboard interrupt.")
@@ -356,10 +361,94 @@ class Yolo:
             # Save the parameters of detected objects in xml format
             if self.saveAnnotatedXML:
                 xmlFileName = os.path.join(
-                    self.textOutputFolder, inputFileName.split('.')[0] + '.xml')
-                self.save_xml(xmlFileName, predictedObjects, inputFileName)
 
-    def save_xml(self, outputTextFileName, predictedObjects, inputFileName):
+                    self.textOutputFolder, fileName.split('.')[0] + '.xml')
+                self.save_xml(xmlFileName, predictedObjects)
+    
+    def yolo_test_video(self):
+        """Test YOLO on a video"""
+        # Open the input video, blocking call
+        inputVideo = cv2.VideoCapture(self.inputFile)
+		
+        # Get infomration about the input video
+        codec = int(inputVideo.get(cv2.CAP_PROP_FOURCC))
+        fps = int(inputVideo.get(cv2.CAP_PROP_FPS))
+        frameWidth = int(inputVideo.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frameHeight = int(inputVideo.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # Open the output stream
+        outputVideo = cv2.VideoWriter(self.outputFile,
+                                      codec,
+                                      fps,
+                                      (frameWidth,frameHeight))
+        frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
+        totalFrames = inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)
+ 	 
+	avgGrabTime = 0
+	avgYoloTime = 0
+	avgWriteTime = 0
+        
+        # For each frame in the video
+        while True:
+            
+            startTime = time.time()
+            
+            # Calculate the time it takes to grab a frame
+            startGrabTime = time.time()
+            grabbed, frame = inputVideo.read()
+            endGrabTime = time.time() 
+	    avgGrabTime+=(endGrabTime-startGrabTime)
+	   
+
+            if grabbed:
+		
+                # Calculate the time it takes to run YOLO pipeline 
+		startYoloTime = time.time()
+                annotatedFrame, predictedObjects = self.detect_from_image(frame)
+		endYoloTime = time.time()
+		avgYoloTime+= ( endYoloTime - startYoloTime)
+
+                frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
+ 	
+		currentTime = time.time()
+		elapsedTime = currentTime - startTime
+		currentFPS = (1)/elapsedTime    
+		        	
+                #cv2.rectangle(annotatedFrame, (0, 0), (30, 30), (0,0,0), -1)
+                cv2.putText(
+                        annotatedFrame, 'FPS' + ': %.2f' % currentFPS,
+                        (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (255, 255, 255), 2
+                        )
+		
+                # Calculate the time it takes to write an annotated frame to video
+		startWriteTime = time.time()
+                outputVideo.write(annotatedFrame)
+		endWriteTime = time.time()
+		avgWriteTime +=(endWriteTime - startWriteTime)
+	
+            else:
+                inputVideo.set(cv2.CAP_PROP_POS_FRAMES, frameIndex-1)
+                cv2.waitKey(100)
+
+            if frameIndex==totalFrames:
+                break
+		
+        inputVideo.release()
+        outputVideo.release()
+        cv2.destroyAllWindows()
+        
+        avgGrabTime/=totalFrames
+        avgYoloTime/=totalFrames
+        avgWriteTime/=totalFrames
+
+        if self.verbose:
+            print ('Average time for extracting compressed video frame : %.3f'  %avgGrabTime)
+            print ('Average time for YOLO object detection : %.3f'  %avgYoloTime )
+            print ('Average time for writing frame to video : %.3f'  %avgWriteTime)
+	       
+    def save_xml(self, fileName, outputTextFileName, predictedObjects):
+
         """To save XML file with details of predicted object"""
         if self.verbose:
             print('Saving xml file', outputTextFileName)
@@ -512,12 +601,12 @@ class Yolo:
         # objectClassProbability: P(class | object) * P(object), i.e.
         # the probability of an object present, and it being each class
         # Equivalent to:
-        for i in range(self.numOfBoxesPerGrid):
-            for j in range(self.numOfClasses):
-                self.objectClassProbability[:, :, i, j] = np.multiply(
-                    self.objectProbability[:, :, i],
-                    self.classConditionalProbability[:, :, j]
-                    )
+        #for i in range(self.numOfBoxesPerGrid):
+        #    for j in range(self.numOfClasses):
+        #        self.objectClassProbability[:, :, i, j] = np.multiply(
+        #            self.objectProbability[:, :, i],
+        #            self.classConditionalProbability[:, :, j]
+        #            )
         # Also equivalent to:
         # for i in range(self.numOfGridsIn1D):
         #     for j in range(self.numOfGridsIn1D):
@@ -526,12 +615,12 @@ class Yolo:
         #             self.classConditionalProbability[i, j, :]
         #             )
         # Or:
-        # self.objectClassProbability = np.einsum(
-        #     '...i, ...j',
-        #     self.objectProbability,
-        #     self.classConditionalProbability,
-        #     out=self.objectClassProbability
-        #     )
+        self.objectClassProbability = np.einsum(
+             '...i, ...j',
+             self.objectProbability,
+             self.classConditionalProbability,
+             out=self.objectClassProbability
+             )
         if self.debug:
             print("objectClassProbability.")
         # (x, y, w, h) == (<left> <top> <right> <bottom>) of the
@@ -660,6 +749,7 @@ class Yolo:
                 print('Class : ' + results[i][0] + ', [x, y, w, h] [' +
                     str(x) + ', ' + str(y) + ', ' + str(w) + ', ' + str(h) +
                     '] Confidence : ' + str(results[i][5]))
+            
             # Each class must have a unique color
             color = tuple([(j * (1+self.classes.index(results[i][0])) % 255) \
                     for j in self.seed])
@@ -943,7 +1033,6 @@ class Yolo:
                             name=str(index) + '_fc')
             return tf.maximum(self.leakyReLUAlpha * answer, answer,
                               name=str(index) + '_fc')
-
 
 def main():
     yolo = Yolo(mode='testDB',
