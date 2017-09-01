@@ -1,13 +1,15 @@
+from __future__ import print_function
+
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import random
 import os
 import sys
 import tensorflow as tf
-import time
+import tqdm
 import xml.etree.cElementTree as ET
 
+from future.utils import python_2_unicode_compatible
 from six.moves import cPickle as pickle
 from xml.dom import minidom
 
@@ -70,6 +72,9 @@ class Yolo:
         self.mode = mode
         # Weights file
         self.weightFile = weightFile
+        if not os.path.exists(self.weightFile):
+            print("ERROR: Weight file not found!! (or wrong)")
+            return
         # To save annotated images
         self.saveAnnotatedImage = saveAnnotatedImage
         # To save annotated XML
@@ -108,27 +113,59 @@ class Yolo:
         self.outputFolder = outputFolder
         # textOutputFolder file
         self.textOutputFolder = textOutputFolder
+        
         # Input file
         if self.inputFile is None:
             self.inputFile = 'test/006656.jpg'
+        if mode == 'testFile':
+            if not os.path.exists(self.inputFile):
+                print("ERROR: Image file", inputFile, "does not exist!")
+                return
+        
         # Output file
         if self.outputFile is None:
             self.outputFile = 'test/output.jpg'
+        if mode == 'testFile' and saveAnnotatedImage:
+            if not os.path.exists("/".join(self.outputFile.split("/")[:-1])):
+                print("ERROR: Image output folder", "/".join(self.outputFile.split("/")[:-1]), "does not exist!")
+                return
+        
         # Text output file
         if self.textOutputFile is None:
             textOutputFile = 'test/outputAnnotations.txt'
+        if mode == 'testFile' and saveAnnotatedXML:
+            if not os.path.exists("/".join(self.textOutputFile.split("/")[:-1])):
+                print("ERROR: Text output folder", "/".join(self.textOutputFile.split("/")[:-1]), "does not exist!")
+                return
+        
         # Input folder of DB
         if self.inputFolder is None:
             self.inputFolder = '../VOC2007/test/JPEGImages/'
+        if mode == 'testDB':
+            if not os.path.exists(inputFolder):
+                print("ERROR: Image input folder", inputFolder, "does not exist!")
+                return
+
         # Output folder of DB
         if self.outputFolder is None:
             self.outputFolder = 'VOC2007/test/outputImages/'
+        if mode == 'testDB' and saveAnnotatedImage:
+            if not os.path.exists(outputFolder):
+                print("ERROR: Image output folder", outputFolder, "does not exist!")
+                return
+
         # Text output folder of DB
         if self.textOutputFolder is None:
             self.textOutputFolder = 'VOC2007/test/outputAnnotations/'
+        if mode == 'testDB' and saveAnnotatedXML:
+            if not os.path.exists(textOutputFolder):
+                print("ERROR: Text output folder", textOutputFolder, "does not exist!")
+                return
+
         # Build the YOLO network
-        self.build_graph()
         self.init_other_vars()
+        self.build_graph()
+
         # If YOLO is to be tested live
         if self.mode == 'testLive':
             # By default, show annotated images, but don't save
@@ -144,6 +181,7 @@ class Yolo:
                 self.saveAnnotatedXML = False
             # Test YOLO live
             self.yolo_test_live()
+
         # Else, if YOLO is to be tested on a file
         elif self.mode == 'testFile':
             # By default, show annotated image, save the annotated
@@ -159,6 +197,7 @@ class Yolo:
                 self.saveAnnotatedXML = False
             # Test YOLO on self.inputFile
             self.yolo_test_file()
+
         # Else, if YOLO is to be tested on a database
         elif self.mode == 'testDB':
             # By default, don't show annotated image, but save the
@@ -174,9 +213,11 @@ class Yolo:
                 self.saveAnnotatedXML = True
             # Test YOLO on all files in self.inputFolder
             self.yolo_test_db()
+
         # Else, if YOLO is to be tested on a video
         elif self.mode =='testVideo':
             self.yolo_test_video()
+
 
         else:
             # TODO: train mode
@@ -242,8 +283,7 @@ class Yolo:
         self.saver = tf.train.Saver()
         self.saver.restore(self.sess, self.weightFile)
         # Print
-        if self.verbose:
-            print('Loading Complete')
+        print('Graph built.')
 
     def yolo_test_live(self):
         """Test YOLO live"""
@@ -304,9 +344,9 @@ class Yolo:
     def yolo_test_db(self):
         """Test YOLO on a database"""
         # For each file in database
-        for fileName in os.listdir(self.inputFolder):
+        for inputFileName in tqdm.tqdm(os.listdir(self.inputFolder)):
             # File path
-            inputFile = os.path.join(self.inputFolder, fileName)
+            inputFile = os.path.join(self.inputFolder, inputFileName)
             # Detect object
             annotatedImage, predictedObjects = self.detect_from_file(
                 inputFile)
@@ -316,11 +356,12 @@ class Yolo:
                 cv2.waitKey(1)
             # Save annotated image
             if self.saveAnnotatedImage:
-                outputFileName = os.path.join(self.outputFolder, fileName)
+                outputFileName = os.path.join(self.outputFolder, inputFileName)
                 cv2.imwrite(outputFileName, annotatedImage)
             # Save the parameters of detected objects in xml format
             if self.saveAnnotatedXML:
                 xmlFileName = os.path.join(
+
                     self.textOutputFolder, fileName.split('.')[0] + '.xml')
                 self.save_xml(xmlFileName, predictedObjects)
     
@@ -407,13 +448,14 @@ class Yolo:
             print ('Average time for writing frame to video : %.3f'  %avgWriteTime)
 	       
     def save_xml(self, fileName, outputTextFileName, predictedObjects):
+
         """To save XML file with details of predicted object"""
         if self.verbose:
             print('Saving xml file', outputTextFileName)
         # root element
         root = ET.Element("annotation")
         # annotation.filename
-        ET.SubElement(root, "filename").text = fileName
+        ET.SubElement(root, "filename").text = inputFileName
         # For each predicted object
         for i in range(len(predictedObjects)):
             # annotation.object
@@ -443,7 +485,7 @@ class Yolo:
             ET.tostring(root)).toprettyxml(indent="   ")
         # Saving the xml file
         with open(outputTextFileName, 'w') as f:
-            f.write(xmlString.encode('utf-8'))
+            f.write(xmlString)
 
     def init_other_vars(self):
         """Initialize other relevant variables"""
@@ -993,8 +1035,13 @@ class Yolo:
                               name=str(index) + '_fc')
 
 def main():
-    yolo = Yolo()
-    # cv2.waitKey(1000)
+    yolo = Yolo(mode='testDB',
+                inputFolder='/home/voletiv/Datasets/VOC2010/JPEGImages',
+                saveAnnotatedImage=False,
+                saveAnnotatedXML=True, textOutputFolder='/home/voletiv/Datasets/VOC2010/outputXML/',
+                iouThreshold=0.2,
+                verbose=False)
+
 
 if __name__ == '__main__':
     main()
