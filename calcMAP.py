@@ -101,19 +101,15 @@ def calculate_mAP():
         for predictedObjectIndex in range(len(dictPredicted[classId])):
         # To find the ground truth bounding box corresponding with the
         # predicted bounding box
-            
-            predictedItem = dictPredicted[classId][predictedObjectIndex]
-            
 
+            predictedItem = dictPredicted[classId][predictedObjectIndex]
+            maxIoU = 0.0
+            maxIndex = -1
             # If no item of classId predicted is present in the ground truth image
             if len(dictGT[classId][predictedItem[1]])==0:
                 falsePositives[classId,predictedObjectIndex]=1
                 continue
-                 
-            maxIoU = 0.0
-            maxIndex = -1
-
-            # For each ground truth box            
+             # For each ground truth box            
             for GTObjectIndex in  range(len(dictGT[classId][predictedItem[1]])):
                 # If particular GTbox has already been alloted to predicted box
                 # move to the next box without considering it

@@ -47,7 +47,7 @@ class Yolo:
     def __init__(self,
                  mode='testVideo',
                  weightFile='weights/yolo_small.ckpt',
-                 showImage=None,
+                 showImage=False,
                  saveAnnotatedImage=None,
                  saveAnnotatedXML=None,
                  numOfGridsIn1D=7,
@@ -60,7 +60,7 @@ class Yolo:
                  lambdaCoordinate=5.0,
                  lambdaNoObject=0.5,
                  leakyReLUAlpha=0.1,
-                 inputFile='test/person.jpg',
+                 inputFile='test/dog.jpg',
                  outputFile='test/output.jpg',
                  textOutputFile=None,
                  inputFolder=None,
@@ -113,7 +113,7 @@ class Yolo:
         self.outputFolder = outputFolder
         # textOutputFolder file
         self.textOutputFolder = textOutputFolder
-        
+
         # Input file
         if self.inputFile is None:
             self.inputFile = 'test/006656.jpg'
@@ -121,7 +121,7 @@ class Yolo:
             if not os.path.exists(self.inputFile):
                 print("ERROR: Image file", inputFile, "does not exist!")
                 return
-        
+
         # Output file
         if self.outputFile is None:
             self.outputFile = 'test/output.jpg'
@@ -129,15 +129,15 @@ class Yolo:
             if not os.path.exists("/".join(self.outputFile.split("/")[:-1])):
                 print("ERROR: Image output folder", "/".join(self.outputFile.split("/")[:-1]), "does not exist!")
                 return
-        
+
         # Text output file
         if self.textOutputFile is None:
-            textOutputFile = 'test/outputAnnotations.txt'
+            self.textOutputFile = 'test/outputAnnotations.txt'
         if mode == 'testFile' and saveAnnotatedXML:
             if not os.path.exists("/".join(self.textOutputFile.split("/")[:-1])):
                 print("ERROR: Text output folder", "/".join(self.textOutputFile.split("/")[:-1]), "does not exist!")
                 return
-        
+
         # Input folder of DB
         if self.inputFolder is None:
             self.inputFolder = '../VOC2007/test/JPEGImages/'
@@ -339,7 +339,7 @@ class Yolo:
             xmlFileName = os.path.join(
                 self.textOutputFolder,
                 self.outputFile.split('.')[0] + '.xml')
-            self.save_xml(xmlFileName, predictedObjects)
+            self.save_xml(self.inputFile, xmlFileName, predictedObjects)
 
     def yolo_test_db(self):
         """Test YOLO on a database"""
@@ -364,12 +364,12 @@ class Yolo:
 
                     self.textOutputFolder, fileName.split('.')[0] + '.xml')
                 self.save_xml(xmlFileName, predictedObjects)
-    
+
     def yolo_test_video(self):
         """Test YOLO on a video"""
         # Open the input video, blocking call
         inputVideo = cv2.VideoCapture(self.inputFile)
-		
+
         # Get infomration about the input video
         codec = int(inputVideo.get(cv2.CAP_PROP_FOURCC))
         fps = int(inputVideo.get(cv2.CAP_PROP_FPS))
@@ -383,61 +383,61 @@ class Yolo:
                                       (frameWidth,frameHeight))
         frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
         totalFrames = inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)
- 	 
+
 	avgGrabTime = 0
 	avgYoloTime = 0
 	avgWriteTime = 0
-        
+
         # For each frame in the video
         while True:
-            
+
             startTime = time.time()
-            
+
             # Calculate the time it takes to grab a frame
             startGrabTime = time.time()
             grabbed, frame = inputVideo.read()
-            endGrabTime = time.time() 
+            endGrabTime = time.time()
 	    avgGrabTime+=(endGrabTime-startGrabTime)
-	   
+
 
             if grabbed:
-		
-                # Calculate the time it takes to run YOLO pipeline 
+
+                # Calculate the time it takes to run YOLO pipeline
 		startYoloTime = time.time()
                 annotatedFrame, predictedObjects = self.detect_from_image(frame)
 		endYoloTime = time.time()
 		avgYoloTime+= ( endYoloTime - startYoloTime)
 
                 frameIndex = inputVideo.get(cv2.CAP_PROP_POS_FRAMES)
- 	
+
 		currentTime = time.time()
 		elapsedTime = currentTime - startTime
-		currentFPS = (1)/elapsedTime    
-		        	
+		currentFPS = (1)/elapsedTime
+
                 #cv2.rectangle(annotatedFrame, (0, 0), (30, 30), (0,0,0), -1)
                 cv2.putText(
                         annotatedFrame, 'FPS' + ': %.2f' % currentFPS,
                         (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (255, 255, 255), 2
                         )
-		
+
                 # Calculate the time it takes to write an annotated frame to video
 		startWriteTime = time.time()
                 outputVideo.write(annotatedFrame)
 		endWriteTime = time.time()
 		avgWriteTime +=(endWriteTime - startWriteTime)
-	
+
             else:
                 inputVideo.set(cv2.CAP_PROP_POS_FRAMES, frameIndex-1)
                 cv2.waitKey(100)
 
             if frameIndex==totalFrames:
                 break
-		
+
         inputVideo.release()
         outputVideo.release()
         cv2.destroyAllWindows()
-        
+
         avgGrabTime/=totalFrames
         avgYoloTime/=totalFrames
         avgWriteTime/=totalFrames
@@ -446,8 +446,8 @@ class Yolo:
             print ('Average time for extracting compressed video frame : %.3f'  %avgGrabTime)
             print ('Average time for YOLO object detection : %.3f'  %avgYoloTime )
             print ('Average time for writing frame to video : %.3f'  %avgWriteTime)
-	       
-    def save_xml(self, fileName, outputTextFileName, predictedObjects):
+
+    def save_xml(self, inputFileName, outputTextFileName, predictedObjects):
 
         """To save XML file with details of predicted object"""
         if self.verbose:
@@ -749,7 +749,7 @@ class Yolo:
                 print('Class : ' + results[i][0] + ', [x, y, w, h] [' +
                     str(x) + ', ' + str(y) + ', ' + str(w) + ', ' + str(h) +
                     '] Confidence : ' + str(results[i][5]))
-            
+
             # Each class must have a unique color
             color = tuple([(j * (1+self.classes.index(results[i][0])) % 255) \
                     for j in self.seed])
@@ -845,7 +845,7 @@ class Yolo:
     def train_network(self):
         """
         Determine which bounding box is responsible for prediction.
-        
+
         Save the weights after each epoch.
         """
         if self.trainData:
@@ -862,14 +862,14 @@ class Yolo:
     def calculate_loss_function(self, predicted, groundTruth):
         """
         Calculate the total loss for gradient descent.
-        
+
         For each ground truth object, loss needs to be calculated.
         It is assumed that each image consists of only one object.
 
         Predicted
         0-19 CLass prediction
         20-21 Confidence that objects exist in bbox1 or bbox2 of grid
-        22-29 Coordinates for bbo1, followed by those of bbox2 
+        22-29 Coordinates for bbo1, followed by those of bbox2
 
         Real
         0-19 Class prediction (One-Hot Encoded)
@@ -979,7 +979,7 @@ class Yolo:
         index : index of the layer within the network
         inputMatrix : self-Explainatory, the input
         sizeOfFilter : defines the receptive field of a neuron
-        stride : self-Exmplainatory, pixels to skip 
+        stride : self-Exmplainatory, pixels to skip
 
         Output
         Matrix the size of (input0/stride)x(input1/stride)xnoOfFilters
@@ -1001,7 +1001,7 @@ class Yolo:
         index : index of the layer within the network
         inputMatrix : self-Explainatory, the input
         sizeOfFilter : defines the receptive field of a neuron
-        stride : self-Exmplainatory, pixels to skip 
+        stride : self-Exmplainatory, pixels to skip
 
         Output
         Matrix the size of (input0/stride)x(input1/stride)xnoOfFilters
@@ -1035,10 +1035,11 @@ class Yolo:
                               name=str(index) + '_fc')
 
 def main():
-    yolo = Yolo(mode='testDB',
-                inputFolder='/home/voletiv/Datasets/VOC2010/JPEGImages',
-                saveAnnotatedImage=False,
-                saveAnnotatedXML=True, textOutputFolder='/home/voletiv/Datasets/VOC2010/outputXML/',
+    yolo = Yolo(mode='testFile',
+                inputFolder='',
+                saveAnnotatedImage=True,
+                saveAnnotatedXML=True,
+                textOutputFolder='',
                 iouThreshold=0.2,
                 verbose=False)
 
